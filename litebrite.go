@@ -1,11 +1,8 @@
-package main
+package litebrite
 
 import (
 	"go/scanner"
 	"go/token"
-	"fmt"
-	"os"
-	"io/ioutil"
 	"html/template"
 	"bytes"
 	"sort"
@@ -114,16 +111,4 @@ func Highlight(src []byte) string {
 	segs := getSegments(src)
 	tagSegments(segs, getTags(src))
 	return buildHTML(segs)
-}
-
-func main() {
-	files := os.Args[1:]
-	for _, filename := range files {
-		src, err := ioutil.ReadFile(filename)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s\n", err.Error())
-			return
-		}
-		fmt.Println(Highlight(src))
-	}
 }
