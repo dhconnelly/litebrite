@@ -1,47 +1,51 @@
 package litebrite
 
 import (
+	"bytes"
+	"fmt"
 	"go/scanner"
 	"go/token"
 	"html/template"
-	"bytes"
 	"sort"
 )
 
 type codeSegment struct {
-	Code string // a segment of source code with the same style
-	Pos int // the position of the segment in the source
-	Tag string // the CSS class for the segment
+	Code  string // a segment of source code with the same style
+	Pos   int    // the position of the segment in the source
+	Class string // the CSS class for the segment
 }
 
+// token types
 const (
-	KEYWORD = "keyword"
-	IDENT = "ident"
-	LITERAL = "literal"
+	KEYWORD  = "keyword"
+	IDENT    = "ident"
+	LITERAL  = "literal"
 	OPERATOR = "operator"
 )
 
-func getTag(tok token.Token) (tag string) {
+// getClass returns the CSS class name for the specified token type.
+func getClass(tok token.Token) (class string) {
 	switch {
 	case tok.IsKeyword():
-		tag = KEYWORD
+		return KEYWORD
 	case tok.IsLiteral():
 		if tok == token.IDENT {
-			tag = IDENT
+			return IDENT
 		} else {
-			tag = LITERAL
+			return LITERAL
 		}
 	case tok.IsOperator():
-		tag = OPERATOR
+		return OPERATOR
 	default:
 		panic("unknown token type!")
 	}
 	return
 }
 
-// get token tags for each position in src
-func getTags(src []byte) map[int]string {
+// getClasses returns a map from source token positions to CSS class names.
+func getClasses(src []byte) map[int]string {
 	tokens := make(map[int]string)
+
 	var s scanner.Scanner
 	fset := token.NewFileSet()
 	file := fset.AddFile("", fset.Base(), len(src))
@@ -51,12 +55,13 @@ func getTags(src []byte) map[int]string {
 		if tok == token.EOF {
 			break
 		}
-		tokens[int(pos) - 1] = getTag(tok) // WTF -1
+		tokens[int(pos)-1] = getClass(tok) // WTF -1
 	}
+
 	return tokens
 }
 
-// breaks src into segments; returns a map from segment position in src to segment
+// getSegments splits the source into same-token-type chunks.
 func getSegments(src []byte) map[int]*codeSegment {
 	segments := make(map[int]*codeSegment)
 	positions := make([]int, 0)
@@ -71,44 +76,61 @@ func getSegments(src []byte) map[int]*codeSegment {
 		if tok == token.EOF {
 			break
 		}
-		positions = append(positions, int(pos) - 1) // WTF -1
+		positions = append(positions, int(pos)-1) // WTF -1
 	}
-	positions = append(positions, positions[len(positions)-1] + 1)
 
-	// split the source at each position to get a slice of substrings
+	// to help with slicing, add one more position at the end
+	positions = append(positions, positions[len(positions)-1]+1)
+
+	// split the source at each position to get segments
 	for i := 1; i < len(positions); i++ {
 		start, end := positions[i-1], positions[i]
-		segments[start] = &codeSegment{Code: string(src[start:end]), Pos: start}
+		segment := string(src[start:end])
+		segments[start] = &codeSegment{Code: segment, Pos: start}
 	}
-	
+
 	return segments
 }
 
-func tagSegments(src map[int]*codeSegment, tags map[int]string) {
-	for pos, tag := range tags {
-		src[pos].Tag = tag
+// styleSegments adds the CSS class names in classes to the segments in src.
+// The class name classes[i] is applied to the segment src[i].
+func styleSegments(src map[int]*codeSegment, classes map[int]string) {
+	for pos, class := range classes {
+		src[pos].Class = class
 	}
 }
 
-const TAG = `<div style="display: inline" class="{{.Tag}}">{{.Code}}</div>`
-var t = template.Must(template.New("golang-code").Parse(TAG))
+const ELEM = `<div class="{{.Tag}}">{{.Code}}</div>`
+const CODE = `<pre><code class="golang">%s</code></pre>`
 
+var elemT = template.Must(template.New("golang-elem").Parse(ELEM))
+
+// buildHTML constructs an HTML string of elements from the segments in src.
 func buildHTML(src map[int]*codeSegment) string {
 	indices := make([]int, 0)
 	for pos := range src {
 		indices = append(indices, pos)
 	}
 	sort.Ints(indices)
-	
+
 	var b bytes.Buffer
 	for _, pos := range indices {
-		t.Execute(&b, src[pos])
+		elemT.Execute(&b, src[pos])
 	}
-	return "<pre><code>" + string(b.Bytes())  + "</code></pre>"
+	code := string(b.Bytes())
+
+	return fmt.Sprintf(CODE, code)
 }
 
-func Highlight(src []byte) string {
-	segs := getSegments(src)
-	tagSegments(segs, getTags(src))
+// Highlight returns an HTML fragment containing elements for all Go tokens
+// in src.  The elements will be of the form <div class=TYPE>CODE</div>, where
+// TYPE is the token type ("keyword", "operator", "literal", or "ident")
+// and CODE is the source fragment.  The entire fragment is wrapped with <pre>
+// and <code class="golang"> tags.
+func Highlight(src string) string {
+	data := []byte(src)
+	segs := getSegments(data)
+	classes := getClasses(data)
+	styleSegments(segs, classes)
 	return buildHTML(segs)
 }
