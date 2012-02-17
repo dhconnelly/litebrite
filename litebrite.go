@@ -100,8 +100,8 @@ func styleSegments(src map[int]*codeSegment, classes map[int]string) {
 	}
 }
 
-const ELEM = `<div class="{{.Tag}}">{{.Code}}</div>`
-const CODE = `<pre><code class="golang">%s</code></pre>`
+const CODE = "<pre><code class=\"golang\">%s</code></pre>"
+const ELEM = `<div class="{{.Class}}">{{.Code}}</div>`
 
 var elemT = template.Must(template.New("golang-elem").Parse(ELEM))
 
@@ -117,9 +117,8 @@ func buildHTML(src map[int]*codeSegment) string {
 	for _, pos := range indices {
 		elemT.Execute(&b, src[pos])
 	}
-	code := string(b.Bytes())
 
-	return fmt.Sprintf(CODE, code)
+	return fmt.Sprintf(CODE, string(b.Bytes()))
 }
 
 // Highlight returns an HTML fragment containing elements for all Go tokens
