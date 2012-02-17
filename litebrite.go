@@ -8,8 +8,8 @@ import (
 )
 
 type codeSegment struct {
-	Code  string // a segment of source code with the same style
-	Pos   int    // the position of the segment in the source
+	Code  string      // a segment of source code with the same style
+	Pos   int         // the position of the segment in the source
 	Tok   token.Token // the token type of the segment
 	Class string
 }
@@ -24,11 +24,13 @@ func getSegments(src []byte) []*codeSegment {
 	file := fset.AddFile("", fset.Base(), len(src))
 	s.Init(file, src, nil, 1)
 	for {
-		pos, tok, _ := s.Scan()
+		filePos, tok, _ := s.Scan()
 		if tok == token.EOF {
 			break
 		}
-		segment := &codeSegment{Pos: int(pos)-1, Tok: tok} // WTF -1
+
+		pos := int(filePos) - file.Base() // pos in this source only
+		segment := &codeSegment{Pos: pos, Tok: tok}
 		segments = append(segments, segment)
 	}
 
@@ -50,23 +52,23 @@ const ELEM = `{{with .Class}}<div class="{{.}}">{{end}}{{.Code}}{{with .Class}}<
 var elemT = template.Must(template.New("golang-elem").Parse(ELEM))
 
 // buildHTML constructs an HTML string of elements from the segments in src.
-func buildHTML(src []*codeSegment) string {
+func buildHTML(src []*codeSegment) []byte {
 	var b bytes.Buffer
 	for _, segment := range src {
 		elemT.Execute(&b, segment)
 	}
 
-	return string(b.Bytes())
+	return b.Bytes()
 }
 
 // Highlighter contains the CSS class names that are applied to the
-// corresponding source code token types.
+// corresponding source code token types and the desired width of tabs.
 type Highlighter struct {
 	OperatorClass string
-	IdentClass string
-	LiteralClass string
-	KeywordClass string
-	CommentClass string
+	IdentClass    string
+	LiteralClass  string
+	KeywordClass  string
+	CommentClass  string
 }
 
 // highlightSegment adds the CSS class name specified by h to the segment.
@@ -81,7 +83,7 @@ func (h *Highlighter) highlightSegment(s *codeSegment) {
 			s.Class = h.LiteralClass
 		}
 	case s.Tok.IsOperator():
-		if s.Tok == token.SEMICOLON && s.Code != ";" {
+		if s.Tok == token.SEMICOLON && len(s.Code) > 0 && s.Code[0] != ';' {
 			return
 		}
 		s.Class = h.OperatorClass
@@ -92,14 +94,13 @@ func (h *Highlighter) highlightSegment(s *codeSegment) {
 	}
 }
 
-// Highlight returns an HTML fragment containing elements for all Go tokens
-// in src.  The elements will be of the form <div class="TYPE_CLASS">CODE</div>
-// where TYPE_CLASS is the CSS class name provided in h corresponding to the
-// token type of CODE.  For instance, if CODE is a keyword, then TYPE_CLASS
-// will be h.keywordClass.
-func (h *Highlighter) Highlight(src string) string {
-	data := []byte(src)
-	segments := getSegments(data)
+// Highlight returns an HTML fragment containing elements for all Go tokens in
+// src.  The elements will be of the form `<div class="TYPE_CLASS">CODE</div>`
+// where `TYPE_CLASS` is the CSS class name provided in `h` corresponding to
+// the token type of `CODE`.  For instance, if `CODE` is a keyword, then
+// `TYPE_CLASS` will be `h.keywordClass`.
+func (h *Highlighter) Highlight(src []byte) []byte {
+	segments := getSegments(src)
 	for _, segment := range segments {
 		h.highlightSegment(segment)
 	}
