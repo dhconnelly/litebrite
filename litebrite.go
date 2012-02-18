@@ -83,9 +83,6 @@ func (h *Highlighter) highlightSegment(s *codeSegment) {
 			s.Class = h.LiteralClass
 		}
 	case s.Tok.IsOperator():
-		if s.Tok == token.SEMICOLON && len(s.Code) > 0 && s.Code[0] != ';' {
-			return
-		}
 		s.Class = h.OperatorClass
 	case s.Tok == token.COMMENT:
 		s.Class = h.CommentClass
