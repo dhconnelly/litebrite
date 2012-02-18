@@ -2,64 +2,65 @@ package litebrite
 
 import (
 	"bytes"
+	"fmt"
 	"go/scanner"
 	"go/token"
 	"html/template"
+	"strings"
 )
 
-type codeSegment struct {
-	Code  string      // a segment of source code with the same style
-	Pos   int         // the position of the segment in the source
-	Tok   token.Token // the token type of the segment
-	Class string
+// ## Source tokenizing
+
+// sep represents a split in source code due to a token occurrence.
+type sep struct {
+	pos int
+	tok token.Token
 }
 
-// getSegments splits the source into same-token-type chunks.
-func getSegments(src []byte) []*codeSegment {
-	segments := make([]*codeSegment, 0)
-
-	// find the starting positions of all segments
+// tokenize scans src and emits a sep on every token occurrence.
+func tokenize(src string, tc chan *sep) {
 	var s scanner.Scanner
-	fset := token.NewFileSet()
+	fset := token.NewFileSet() // boilerplate stuff for scanner...
 	file := fset.AddFile("", fset.Base(), len(src))
-	s.Init(file, src, nil, 1)
+	s.Init(file, []byte(src), nil, 1)
 	for {
 		filePos, tok, _ := s.Scan()
+		tc <- &sep{int(filePos) - file.Base(), tok}
 		if tok == token.EOF {
+			close(tc)
 			break
 		}
-
-		pos := int(filePos) - file.Base() // pos in this source only
-		segment := &codeSegment{Pos: pos, Tok: tok}
-		segments = append(segments, segment)
 	}
+}
 
-	// split the source at each position to get segments
-	for i, segment := range segments {
-		if i+1 == len(segments) {
-			segment.Code = string(src[segment.Pos:])
-		} else {
-			next := segments[i+1]
-			segment.Code = string(src[segment.Pos:next.Pos])
-		}
-	}
+// tokens returns a channel that emits seps from tokenizing src.
+func tokens(src string) <-chan *sep {
+	tc := make(chan *sep)
+	go tokenize(src, tc)
+	return tc
+}
 
-	return segments
+// trim splits a source chunk into three pieces: the leading whitespace, the
+// source code, and the trailing whitespace.
+func trim(chunk string) (string, string, string) {
+	code := strings.TrimSpace(chunk)
+	wsl := chunk[:strings.Index(chunk, code)]
+	wsr := chunk[len(wsl)+len(code):]
+	return wsl, code, wsr
+}
+
+// ## HTML templating
+
+type div struct {
+	Code  string
+	Class string
 }
 
 const ELEM = `{{with .Class}}<div class="{{.}}">{{end}}{{.Code}}{{with .Class}}</div>{{end}}`
 
 var elemT = template.Must(template.New("golang-elem").Parse(ELEM))
 
-// buildHTML constructs an HTML string of elements from the segments in src.
-func buildHTML(src []*codeSegment) []byte {
-	var b bytes.Buffer
-	for _, segment := range src {
-		elemT.Execute(&b, segment)
-	}
-
-	return b.Bytes()
-}
+// ## Highlighting
 
 // Highlighter contains the CSS class names that are applied to the
 // corresponding source code token types and the desired width of tabs.
@@ -71,24 +72,27 @@ type Highlighter struct {
 	CommentClass  string
 }
 
-// highlightSegment adds the CSS class name specified by h to the segment.
-func (h *Highlighter) highlightSegment(s *codeSegment) {
+// getClass returns the CSS class name associated with tok.
+func (h *Highlighter) getClass(tok token.Token) string {
 	switch {
-	case s.Tok.IsKeyword():
-		s.Class = h.KeywordClass
-	case s.Tok.IsLiteral():
-		if s.Tok == token.IDENT {
-			s.Class = h.IdentClass
+	case tok.IsKeyword():
+		return h.KeywordClass
+	case tok.IsLiteral():
+		if tok == token.IDENT {
+			return h.IdentClass
 		} else {
-			s.Class = h.LiteralClass
+			return h.LiteralClass
 		}
-	case s.Tok.IsOperator():
-		s.Class = h.OperatorClass
-	case s.Tok == token.COMMENT:
-		s.Class = h.CommentClass
+	case tok.IsOperator():
+		return h.OperatorClass
+	case tok == token.COMMENT:
+		return h.CommentClass
+	case tok == token.ILLEGAL:
+		break
 	default:
-		panic("unknown token type!")
+		panic(fmt.Sprintf("unknown token type: %v", tok))
 	}
+	return ""
 }
 
 // Highlight returns an HTML fragment containing elements for all Go tokens in
@@ -96,10 +100,15 @@ func (h *Highlighter) highlightSegment(s *codeSegment) {
 // where `TYPE_CLASS` is the CSS class name provided in `h` corresponding to
 // the token type of `CODE`.  For instance, if `CODE` is a keyword, then
 // `TYPE_CLASS` will be `h.keywordClass`.
-func (h *Highlighter) Highlight(src []byte) []byte {
-	segments := getSegments(src)
-	for _, segment := range segments {
-		h.highlightSegment(segment)
+func (h *Highlighter) Highlight(src string) string {
+	var b bytes.Buffer
+	tc := tokens(src)
+	prev := <-tc
+	for cur := <-tc; cur != nil; prev, cur = cur, <-tc {
+		wsl, code, wsr := trim(src[prev.pos:cur.pos])
+		b.WriteString(wsl)
+		elemT.Execute(&b, &div{code, h.getClass(prev.tok)})
+		b.WriteString(wsr)
 	}
-	return buildHTML(segments)
+	return b.String()
 }
