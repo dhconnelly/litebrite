@@ -11,9 +11,14 @@
 // `<div class="commentz">` tags and all operators are surrounded by
 // `<div class="opz">` tags.
 // 
-// The following fields are exposed on Highlighter for customizing the
-// div tags: CommentClass, OperatorClass, IdentClass, LiteralClass, and
-// KeywordClass.
+// The following fields are exposed on `Highlighter` for customizing the
+// div tags:
+// 
+// - `CommentClass`
+// - `OperatorClass`
+// - `IdentClass`
+// - `LiteralClass`
+// - `KeywordClass`
 
 // Copyright 2012 Daniel Connelly.  All rights reserved.  Use of
 // this source code is governed by a BSD-style license that can be
