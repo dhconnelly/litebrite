@@ -1,4 +1,19 @@
-
+// litebrite is a library for generating syntax-highlighted HTML from your
+// Go source code.  Use is simple: create a Highlighter, add some CSS styles,
+// and pass in some source.
+// 
+// `h := new(litebrite.Highlighter)`<br>
+// `h.CommentClass = "commentz"`<br>
+// `h.OperatorClass = "opz"`<br>
+// `html := h.Highlight(myCodez)`
+// 
+// This will return a string of HTML where all comments are surrounded by
+// `<div class="commentz">` tags and all operators are surrounded by
+// `<div class="opz">` tags.
+// 
+// The following fields are exposed on Highlighter for customizing the
+// div tags: CommentClass, OperatorClass, IdentClass, LiteralClass, and
+// KeywordClass.
 
 // Copyright 2012 Daniel Connelly.  All rights reserved.  Use of
 // this source code is governed by a BSD-style license that can be
