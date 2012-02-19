@@ -99,7 +99,23 @@
     <tbody>
       
       <tr class="section">
-	<td class="doc"></td>
+	<td class="doc"><p>litebrite is a library for generating syntax-highlighted HTML from your
+Go source code.  Use is simple: create a Highlighter, add some CSS styles,
+and pass in some source.</p>
+
+<p><code>h := new(litebrite.Highlighter)</code><br>
+<code>h.CommentClass = &quot;commentz&quot;</code><br>
+<code>h.OperatorClass = &quot;opz&quot;</code><br>
+<code>html := h.Highlight(myCodez)</code></p>
+
+<p>This will return a string of HTML where all comments are surrounded by
+<code>&lt;div class=&quot;commentz&quot;&gt;</code> tags and all operators are surrounded by
+<code>&lt;div class=&quot;opz&quot;&gt;</code> tags.</p>
+
+<p>The following fields are exposed on Highlighter for customizing the
+div tags: CommentClass, OperatorClass, IdentClass, LiteralClass, and
+KeywordClass.</p>
+</td>
 	<td class="code"><pre><code></code></pre></td>
       </tr>
       
