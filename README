@@ -1,0 +1,2 @@
+litebrite is a library for generating syntax-highlighted HTML from your Go
+source code.  See dhconnelly.github.com/litebrite for more details.
