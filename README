@@ -1,2 +1,40 @@
+litebrite
+
+## ABOUT
+
 litebrite is a library for generating syntax-highlighted HTML from your Go
 source code.  See dhconnelly.github.com/litebrite for more details.
+
+## INSTALL
+
+go get github.com/dhconnelly/litebrite
+go install github.com/dhconnelly/litebrite
+
+## USAGE
+
+   import "github.com/dhconnelly/litebrite"
+
+   ...
+
+   h := new(litebrite.Highlighter)
+   h.CommentClass = "commentz"
+   h.OperatorClass = "opz"
+   html := h.Highlight(myCodez)
+
+This will return a string of HTML where every comment in the string myCodez
+is wrapped with a <div class="commentz"> tag and every operator is wrapped
+with a <div class="opz"> tag.
+
+The following string fields are available on a Highlighter struct.  Setting
+a field to a non-nil value causes tokens of that type to be wrapped with a
+<div> that has your specified CSS class name.
+
+CommentClass
+OperatorClass
+IdentClass
+LiteralClass
+KeywordClass
+
+## LICENSE
+
+litebrite is released under a BSD-style license available in the LICENSE file.
