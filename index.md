@@ -13,7 +13,7 @@ About
 
 litebrite is a library for generating syntax-highlighted HTML from your Go
 source code.  For an example of its use, check out its [annotated source
-code](http://dhconnelly.github.com/litebrite).
+code](http://dhconnelly.github.com/litebrite/litebrite.html).
 
 Getting Started
 ---------------
